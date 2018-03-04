@@ -164,6 +164,32 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+bool is_lane_safe(int target_lane, const vector<vector<double>> &sensor_fusion, const double car_s, const int prev_size)
+{
+  target_lane = 2+4*target_lane;
+  for (int i=0; i<sensor_fusion.size(); ++i)
+  {
+    // if there is a car in the target_lane
+    float d = sensor_fusion[i][6];
+    if (d < ((double)target_lane+2) && d > ((double)target_lane-2))
+    {
+      double vx = sensor_fusion[i][3];
+      double vy = sensor_fusion[i][4];
+      double check_speed = sqrt(vx*vx + vy*vy);
+      double check_car_s = sensor_fusion[i][5];
+
+      check_car_s += ((double)prev_size*.02*check_speed);
+
+      // if the car in the target lane is too close to ego car (in front and behind)
+      if (fabs(check_car_s - car_s) < 20)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 // Start in lane 1
 int lane = 1;
 
@@ -262,6 +288,7 @@ int main() {
             }
 
             bool too_close = false;
+            int target_lane = lane;
 
             // find ref_v to use
             for (int i=0; i<sensor_fusion.size(); ++i)
@@ -287,6 +314,34 @@ int main() {
                   // into the car in front of us, could also flag to try to change lanes
                   // ref_vel = 29.5; //mph
                   too_close = true;
+                  // Try to turn to the center lane
+                  if ((lane == 0) || (lane == 2))
+                  {
+                    target_lane = 1;
+                    if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+                    {
+                      lane = target_lane;
+                    }
+                  }
+
+                  else if (lane == 1)
+                  {
+                    // Try left
+                    target_lane = 0;
+                    if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+                    {
+                      lane = target_lane;
+                    }
+                    else
+                    {
+                      // Try right
+                      target_lane = 2;
+                      if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+                      {
+                        lane = target_lane;
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -299,7 +354,6 @@ int main() {
             {
               ref_vel += .224;
             }
-            std::cout<<"ref_vel: "<<ref_vel<<std::endl;
             // Create a list of widely spaced (x,y) waypoints evenly spaced at 30m
             // Later we will interpolate these waypoints with a spline and fill it in with more points that control...
             vector<double> ptsx;
