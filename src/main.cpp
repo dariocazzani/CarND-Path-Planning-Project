@@ -164,6 +164,12 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s, const vec
 
 }
 
+// Start in lane 1
+int lane = 1;
+
+// Have a reference velocity to target
+double ref_vel = 0.0; // mph
+
 int main() {
   uWS::Hub h;
 
@@ -201,6 +207,9 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
 
+
+
+
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
@@ -212,11 +221,6 @@ int main() {
 
       auto s = hasData(data);
 
-      // Start in lane 1
-      int lane = 1;
-
-      // Have a reference velocity to target
-      double ref_vel = 49.5; // mph
 
       if (s != "") {
         auto j = json::parse(s);
@@ -252,6 +256,50 @@ int main() {
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
+            if (prev_size > 0)
+            {
+              car_s = end_path_s;
+            }
+
+            bool too_close = false;
+
+            // find ref_v to use
+            for (int i=0; i<sensor_fusion.size(); ++i)
+            {
+              // car is in my lane
+              float d = sensor_fusion[i][6];
+              double my_safe_lane = 2+4*lane;
+              if (d < (my_safe_lane+2) && d > (my_safe_lane-2))
+              {
+                double vx = sensor_fusion[i][3];
+                double vy = sensor_fusion[i][4];
+                double check_speed = sqrt(vx*vx + vy*vy);
+                double check_car_s = sensor_fusion[i][5];
+
+                // if using previous points can project s value out
+                check_car_s += ((double)prev_size*.02*check_speed);
+
+                // check s values greater than mine and s gap
+                if((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+
+                {
+                  // Do some logic here, lower reference velocity so we don't crash
+                  // into the car in front of us, could also flag to try to change lanes
+                  // ref_vel = 29.5; //mph
+                  too_close = true;
+                }
+              }
+            }
+
+            if(too_close)
+            {
+              ref_vel -= .224;
+            }
+            else if(ref_vel < 49.5)
+            {
+              ref_vel += .224;
+            }
+            std::cout<<"ref_vel: "<<ref_vel<<std::endl;
             // Create a list of widely spaced (x,y) waypoints evenly spaced at 30m
             // Later we will interpolate these waypoints with a spline and fill it in with more points that control...
             vector<double> ptsx;
@@ -344,7 +392,7 @@ int main() {
             // Fill up the rest of our path planner after filling it with previous points, here we will always output 50 points
             for (int i = 1; i <= 50 - previous_path_x.size(); ++i) {
 
-          		double N = (target_dist/(0.02*49.5/2.24));
+          		double N = (target_dist/(0.02*ref_vel/2.24));
           		double x_point = x_add_on + (target_x)/N;
           		double y_point = s(x_point);
 
