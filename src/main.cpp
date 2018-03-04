@@ -181,7 +181,7 @@ bool is_lane_safe(int target_lane, const vector<vector<double>> &sensor_fusion, 
       check_car_s += ((double)prev_size*.02*check_speed);
 
       // if the car in the target lane is too close to ego car (in front and behind)
-      if (fabs(check_car_s - car_s) < 20)
+      if (fabs(check_car_s - car_s) < 30)
       {
         return false;
       }
