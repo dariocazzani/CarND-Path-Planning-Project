@@ -39,6 +39,82 @@ else if(ref_vel < MAX_SPEED)
 }
 ```
 
+### Max Acceleration and Jerk are not Exceeded.
+
+As shown in the point above, adding a small amount to the reference velocity at each time step, made it possible to to avoid to exceed max acceleration and jerk, 
+
+### Car does not have collisions.
+
+Collisions can happen in various ways.
+
+1. The first possible source of collisions is to bump into the car in front in the same lane.
+
+    In order to avoid this, I loop over all the sensor fusion vector - which provides all other cars' attributes.
+    ```C++
+    for (int i=0; i<sensor_fusion.size(); ++i)
+    ```
+    I can detect if a car is driving in the same lane as the ego car by checking if the position of that car is within +/- 2 meters away from the center of the lane where the ego car is driving
+    ```C++
+    // d is lateral displacement of car i from the yellow line at the center of the road
+    float d = sensor_fusion[i][6];
+    double my_safe_lane = 2+4*lane;
+    if (d < (my_safe_lane+2) && d > (my_safe_lane-2))
+    ```
+    If a car is detected in the same lane, I check if it's driving too close to the ego car:
+    ```C++
+    if((check_car_s > car_s) && ((check_car_s - car_s) < 30))
+    ```
+    set a flag to true
+    ```C++
+    too_close = true;
+    ```
+    which will allow the logic described above to slow down the ego car.
+
+2. Another possible source of collisions is when the ego car is changing lane.
+
+    The basic logic for changing lane is to set the variable `lane` to the desired integer.
+    
+    The trajectory will then be generated using the spline library.
+    
+    ```C++
+    // Turn to the center lane
+    target_lane = 1;
+    if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+    {
+      lane = target_lane;
+    }
+    ```
+    
+    Before setting the target lane to the desired lane, we check if that lane in particular is safe.
+    ```C++
+    bool is_lane_safe(int target_lane, const vector<vector<double>> &sensor_fusion, const double car_s, const int prev_size)
+    {
+      target_lane = 2+4*target_lane;
+      for (int i=0; i<sensor_fusion.size(); ++i)
+      {
+        // if there is a car in the target_lane
+        float d = sensor_fusion[i][6];
+        if (d < ((double)target_lane+2) && d > ((double)target_lane-2))
+        {
+          double vx = sensor_fusion[i][3];
+          double vy = sensor_fusion[i][4];
+          double check_speed = sqrt(vx*vx + vy*vy);
+          double check_car_s = sensor_fusion[i][5];
+
+          check_car_s += ((double)prev_size*.02*check_speed);
+
+          // if the car in the target lane is too close to ego car (in front and behind)
+          if (fabs(check_car_s - car_s) < 30)
+          {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    ```
+    
+    The function above looks at all the cars in the target lane and makes sure that there is enough room in front and behind the ego car.
    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
