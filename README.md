@@ -115,7 +115,80 @@ Collisions can happen in various ways.
     ```
     
     The function above looks at all the cars in the target lane and makes sure that there is enough room in front and behind the ego car.
-   
+    
+### The car stays in its lane, except for the time between changing lanes and is able to change lanes
+
+As main logic, the car never tries to change lanes, a part from when there is a slower car in front.
+When this happens, a change to the left lane is preferred (since it tends to be faster).
+
+If the ego car is on the most left lane, or most right lane, the only choice is to try to go to the center lane:
+```C++
+// Try to turn to the center lane
+if ((lane == 0) || (lane == 2))
+{
+  target_lane = 1;
+  if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+  {
+    lane = target_lane;
+  }
+}
+```
+
+If the ego car is driving in the center lane, then we first try to turn left, if this is not possible, the car attempts to turn right.
+```C++
+else if (lane == 1)
+{
+  // Try left
+  target_lane = 0;
+  if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+  {
+    lane = target_lane;
+  }
+  else
+  {
+    // Try right
+    target_lane = 2;
+    if (is_lane_safe(target_lane, sensor_fusion, car_s, prev_size))
+    {
+      lane = target_lane;
+    }
+  }
+}
+```
+
+The way the algorithm works for defining the trajectory for lane change is:
+
+- I define 2 vectors that will be used to generate a spline.
+    ```C++
+    // Create a list of widely spaced (x,y) waypoints evenly spaced at 30m
+    // Later we will interpolate these waypoints with a spline and fill it in with more points that control...
+    vector<double> ptsx;
+    vector<double> ptsy;
+    ```
+- From the previous path get the last 2 points and add them to these vectors:
+    ```C++
+    ptsx.push_back(ref_x_prev);
+    ptsx.push_back(ref_x);
+
+    ptsy.push_back(ref_y_prev);
+    ptsy.push_back(ref_y);
+    ```
+- Given the lane where I want the car to drive (it could be the same as where the ego car currently is), I add evenly 30m spaced points ahead of the starting reference
+    ```C++
+    vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    
+    ptsx.push_back(next_wp0[0]);
+    ptsx.push_back(next_wp1[0]);
+    ptsx.push_back(next_wp2[0]);
+
+    ptsy.push_back(next_wp0[1]);
+    ptsy.push_back(next_wp1[1]);
+    ptsy.push_back(next_wp2[1]);
+    ```
+- These points will be used to generate a spline that can be used to generate all the points needed for the trajectory
+    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
 
