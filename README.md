@@ -1,5 +1,15 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
+
+## Rubric Points
+
+### The code compiles correctly
+
+[x] check!
+
+### The car is able to drive at least 4.32 miles without incident
+
+[image1](images/drive_5_miles.png)
    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
