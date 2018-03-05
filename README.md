@@ -5,11 +5,40 @@ Self-Driving Car Engineer Nanodegree Program
 
 ### The code compiles correctly
 
-[x] check!
+- [x] check!
 
 ### The car is able to drive at least 4.32 miles without incident
 
-[image1](images/drive_5_miles.png)
+![image1](images/drive_5_miles.png)
+
+- [x] check!
+
+### The car drives according to the speed limit.
+
+Speed limit is 50 mph. 
+I made sure that the car tries to stay close to this speed by setting a maximum value of 49.5 mph.
+`src/main.cpp` line 200:
+
+```C++
+const double MAX_SPEED = 49.5;
+```
+
+Whenever the speed is slower that `MAX_SPEED`, set the reference speed value a bit higher until the maximum is reached.
+In order to avoid collisions with cars in front, I set the reference speed to a lower value whenever the ego car is too close.
+
+`src/main.cpp` line 352 to 359:
+
+```C++
+if(too_close)
+{
+  ref_vel -= .224;
+}
+else if(ref_vel < MAX_SPEED)
+{
+  ref_vel += .224;
+}
+```
+
    
 ### Simulator.
 You can download the Term3 Simulator which contains the Path Planning Project from the [releases tab (https://github.com/udacity/self-driving-car-sim/releases).
