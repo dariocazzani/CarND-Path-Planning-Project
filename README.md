@@ -1,7 +1,7 @@
 # CarND-Path-Planning-Project
 Self-Driving Car Engineer Nanodegree Program
 
-## Rubric Points
+## Rubric Points and Reflection
 
 ### The code compiles correctly
 
